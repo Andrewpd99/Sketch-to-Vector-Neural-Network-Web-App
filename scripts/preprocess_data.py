@@ -1,61 +1,63 @@
-import numpy as np
 import os
-from sklearn.model_selection import train_test_split
+import numpy as np
+import cv2
+from PIL import Image, ImageOps
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import gc
 
-def preprocess_data(numpy_dir, output_file, target_shape):
-    data = []
-    labels = []
+# Paths
+input_folder = 'data/numpy_bitmap/'
+output_folder = 'data/processed/'
+
+# Parameters
+img_size = (256, 256)  # Higher resolution for better detail capture
+batch_size = 500  # Adjust based on GPU memory and CPU capacity
+num_threads = 8  # Adjust based on the number of CPU cores
+
+def preprocess_images(batch_images):
+    processed_images = []
+    for img_array in batch_images:
+        # Convert numpy array to grayscale image
+        img = Image.fromarray(img_array).convert('L')
+        
+        # Apply edge detection
+        img_cv = np.array(img)
+        edges = cv2.Canny(img_cv, 100, 200)  # Canny edge detection
+        
+        # Convert edges to PIL image and resize
+        img_edges = Image.fromarray(edges)
+        img_edges = img_edges.resize(img_size)
+        
+        # Apply contrast enhancement
+        img_edges = ImageOps.autocontrast(img_edges)
+        
+        # Normalize to [0, 1]
+        img_edges = np.array(img_edges) / 255.0
+        processed_images.append(img_edges)
     
-    for filename in os.listdir(numpy_dir):
+    return np.array(processed_images)
+
+def process_file(file_path, label):
+    loaded_images = np.load(file_path)
+    for i in range(0, len(loaded_images), batch_size):
+        batch_images = loaded_images[i:i+batch_size]
+        processed_images = preprocess_images(batch_images)
+        batch_file = os.path.join(output_folder, f'{label}_batch_{i//batch_size}.npz')
+        np.savez_compressed(batch_file, images=processed_images)
+        del processed_images
+        gc.collect()
+
+# Multi-threaded file processing
+with ThreadPoolExecutor(max_workers=num_threads) as executor:
+    futures = []
+    for filename in os.listdir(input_folder):
         if filename.endswith('.npy'):
-            file_path = os.path.join(numpy_dir, filename)
-            if os.path.exists(file_path):
-                try:
-                    np_data = np.load(file_path)
-                    # Check the current shape of np_data
-                    current_shape = np_data.shape
-                    # Determine the shape to pad or truncate to
-                    if len(current_shape) < len(target_shape):
-                        current_shape = current_shape + (1,) * (len(target_shape) - len(current_shape))
-                    
-                    # Pad or truncate the data
-                    if current_shape != target_shape:
-                        if np_data.shape < target_shape:
-                            # Pad with zeros
-                            pad_width = [(0, max(0, t - s)) for s, t in zip(current_shape, target_shape)]
-                            np_data = np.pad(np_data, pad_width, mode='constant', constant_values=0)
-                        else:
-                            # Truncate
-                            slices = [slice(0, t) for t in target_shape]
-                            np_data = np.array(np_data[tuple(slices)])
-                    
-                    data.append(np_data)
-                    labels.append(filename.replace('.npy', ''))
-                except Exception as e:
-                    print(f"Error loading {filename}: {e}")
-            else:
-                print(f"File {file_path} does not exist, skipping...")
+            label = filename.split('.')[0]
+            file_path = os.path.join(input_folder, filename)
+            futures.append(executor.submit(process_file, file_path, label))
     
-    if len(data) == 0:
-        raise ValueError("No data loaded. Check if the files are present and correctly formatted.")
-    
-    # Convert lists to numpy arrays
-    data = np.array(data)
-    labels = np.array(labels)
-    
-    print(f"Data shape: {data.shape}")
-    print(f"Labels shape: {labels.shape}")
-    
-    # Split the data
-    try:
-        x_train, x_val, y_train, y_val = train_test_split(data, labels, test_size=0.2, random_state=42)
-        # Save the processed data if needed
-        np.savez(output_file, x_train=x_train, x_val=x_val, y_train=y_train, y_val=y_val)
-    except Exception as e:
-        print(f"Error during train/test split: {e}")
+    # Wait for all tasks to complete
+    for future in as_completed(futures):
+        future.result()
 
-# Example usage
-numpy_dir = 'data/numpy_bitmap'
-output_file = 'processed_data.npz'
-target_shape = (100, 100)  # Replace with your desired shape
-preprocess_data(numpy_dir, output_file, target_shape)
+print("Data preprocessing complete.")

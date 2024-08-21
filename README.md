@@ -4,8 +4,8 @@
 This project is an AI-powered web application that converts hand-drawn sketches into clean vector graphics.
 
 ## Setup
-Dataset from https://console.cloud.google.com/storage/browser/quickdraw_dataset/full/numpy_bitmap
-Did not include .npy files in repository as the files are too large.
+Dataset from https://console.cloud.google.com/storage/browser/quickdraw_dataset/full/numpy_bitmap  
+I Did not include .npy files in repository as the files are too large.
 
 
 1. **Clone the repository:**
