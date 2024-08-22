@@ -1,4 +1,6 @@
 # Ignore all .npy files
 *.npy
+# Ignore all .npz files
 *.npz
+# Ignore all venv files
 venv/

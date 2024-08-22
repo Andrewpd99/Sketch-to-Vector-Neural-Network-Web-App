@@ -15,6 +15,10 @@ def train():
     # Setup
     dataloader, model, device = setup()
     
+    # Initialize optimizer and scaler
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    scaler = GradScaler()
+
     # Load checkpoint if it exists
     start_epoch = 0
     if os.path.exists(checkpoint_path):
@@ -23,9 +27,6 @@ def train():
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
         print(f"Resuming training from epoch {start_epoch}...")
-    else:
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        scaler = GradScaler()
 
     criterion = torch.nn.MSELoss()
 
@@ -71,6 +72,7 @@ def train():
 
         # Print memory usage after each epoch
         if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # Free unused memory
             print(f"Memory Allocated: {torch.cuda.memory_allocated(device)/1024**2:.2f} MB")
             print(f"Memory Cached: {torch.cuda.memory_reserved(device)/1024**2:.2f} MB")
 
