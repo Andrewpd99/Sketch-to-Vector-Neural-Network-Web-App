@@ -1,61 +1,45 @@
+import os
+import time
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 
-# Simple dataset and model for testing
+# Parameters
+batch_size = 128
+num_batches_to_test = 10
+num_workers = 8  # Adjust based on your system
+
 class DummyDataset(Dataset):
-    def __init__(self, size):
-        self.data = torch.randn(size, 3, 224, 224)  # Example with 3x224x224 images
-        self.labels = torch.randint(0, 2, (size,))
-    
+    def __init__(self, size=10000, image_size=(256, 256)):
+        self.size = size
+        self.image_size = image_size
+
     def __len__(self):
-        return len(self.data)
-    
+        return self.size
+
     def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+        # Generate dummy data
+        image = torch.randn(*self.image_size)
+        return image
 
-class DummyModel(nn.Module):
-    def __init__(self):
-        super(DummyModel, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(64*224*224, 2)
-    
-    def forward(self, x):
-        x = self.conv1(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc1(x)
-        return x
+def test_dataloader_speed():
+    # Initialize dataset and dataloader
+    dataset = DummyDataset()
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
-def test_batch_size(batch_size):
-    dataset = DummyDataset(1000)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    # Measure dataloader speed
+    start_time = time.time()
+    for i, batch in enumerate(dataloader):
+        if i >= num_batches_to_test:
+            break
+        batch_start_time = time.time()
+        batch = batch.cuda(non_blocking=True)  # Move to GPU
+        print(f"Batch [{i+1}/{num_batches_to_test}] loaded in {time.time() - batch_start_time:.4f} seconds")
 
-    model = DummyModel().to('cuda')
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    total_time = time.time() - start_time
+    avg_time_per_batch = total_time / num_batches_to_test
+    print(f"Average time per batch: {avg_time_per_batch:.4f} seconds")
+    print(f"Total time for {num_batches_to_test} batches: {total_time:.4f} seconds")
 
-    try:
-        for data, target in dataloader:
-            data, target = data.to('cuda'), target.to('cuda')
-            optimizer.zero_grad()
-            output = model(data)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-            
-            # Print memory usage
-            print(f"Batch Size: {batch_size}")
-            print(f"Memory Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
-            print(f"Memory Cached: {torch.cuda.memory_reserved()/1024**2:.2f} MB")
-            break  # Remove this line to test with more batches
-
-    except RuntimeError as e:
-        print(f"Failed with batch size {batch_size}: {e}")
-
-if __name__ == '__main__':
-    # Test different batch sizes
-    batch_sizes = [64, 128, 256]
-    for bs in batch_sizes:
-        test_batch_size(bs)
+if __name__ == "__main__":
+    test_dataloader_speed()

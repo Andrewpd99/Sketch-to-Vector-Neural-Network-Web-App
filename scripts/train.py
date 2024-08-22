@@ -38,14 +38,14 @@ def train():
 
         for i, images in enumerate(dataloader):
             batch_start_time = time.time()
-            images = images.to(device)
+            images = images.to(device, non_blocking=True)
 
             # Gradient accumulation
             optimizer.zero_grad()
 
             with autocast():  # Enable mixed precision
                 outputs = model(images)
-                target_vectors = torch.randn(images.size(0), 256).to(device)
+                target_vectors = torch.randn(images.size(0), 256, device=device)
                 loss = criterion(outputs, target_vectors)
                 loss = loss / accumulation_steps
 
