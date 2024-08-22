@@ -16,7 +16,7 @@ I Did not include .npy files in repository as the files are too large.
 
 
 ## File Structure
-sketch_recognition_app/
+sketch_to_vector_web_app/
 │
 ├── backend/
 │   ├── __init__.py
@@ -44,7 +44,8 @@ sketch_recognition_app/
 │
 ├── scripts/
 │   ├── preprocess_data.py
-│   ├── train_model.py
+│   ├── setup.py
+│   ├── train.py
 │   └── evaluate_model.py
 │
 ├── requirements.txt
