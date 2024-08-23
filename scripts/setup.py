@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader, Dataset
 import multiprocessing as mp
 import psutil
 import time
-import gc
 
 # Add the project root directory to the sys.path
 import sys
@@ -15,75 +14,70 @@ from backend.model import SketchVectorizer
 # Parameters
 batch_size = 128
 output_dim = 256
-max_memory_usage = 0.5  # Set maximum memory usage as a fraction (e.g., 50%)
-chunk_size = 1000  # Number of files to process at once
 num_workers = min(mp.cpu_count(), 8)  # Number of CPU threads to use
+chunk_size = 5000  # Number of files to process at a time
 
 class SketchDataset(Dataset):
     def __init__(self, npz_files):
         self.npz_files = npz_files
-        self.preloaded_data = []
-        self._preload_data()
+        self._load_first_file()
 
-    def _process_chunk(self, chunk_files):
-        chunk_data = []
-        for file in chunk_files:
-            with np.load(file, mmap_mode='r') as npz_data:
-                chunk_data.extend(npz_data['images'])
-        return chunk_data
-
-    def _preload_data(self):
-        start_time = time.time()
-        total_files = len(self.npz_files)
-        memory_limit = max_memory_usage * psutil.virtual_memory().total / (1024 ** 2)  # MB
-
-        # Process chunks of files to manage memory usage
-        for i in range(0, total_files, chunk_size):
-            chunk_files = self.npz_files[i:i + chunk_size]
-            chunk_data = self._process_chunk(chunk_files)
-
-            # Check memory usage
-            while self._get_memory_usage() > memory_limit:
-                print("Memory usage exceeds limit. Waiting for memory to free up...")
-                time.sleep(5)
-                gc.collect()  # Attempt to free up memory
-
-            self.preloaded_data.extend(chunk_data)
-
-            # Report progress
-            if (i + chunk_size) % 5000 == 0:
-                elapsed_time = time.time() - start_time
-                elapsed_minutes, elapsed_seconds = divmod(elapsed_time, 60)
-                print(f"Loaded {(i + chunk_size)} files in {int(elapsed_minutes)}m {int(elapsed_seconds)}s")
-
-        total_time = time.time() - start_time
-        total_minutes, total_seconds = divmod(total_time, 60)
-        print(f"Completed loading all files in {int(total_minutes)}m {int(total_seconds)}s")
-
-    def _get_memory_usage(self):
-        process = psutil.Process(os.getpid())
-        return process.memory_info().rss / (1024 ** 2)  # MB
+    def _load_first_file(self):
+        if self.npz_files:
+            self._load_file(self.npz_files[0])
+    
+    def _load_file(self, file):
+        self.data = np.load(file, mmap_mode='r')['images']
+        self.current_file_idx = 0
+        self.file_index = 0
 
     def __len__(self):
-        return len(self.preloaded_data)
+        total_images = 0
+        for file in self.npz_files:
+            with np.load(file, mmap_mode='r') as npz_data:
+                total_images += len(npz_data['images'])
+        return total_images
 
     def __getitem__(self, idx):
-        image = self.preloaded_data[idx]
-        return torch.tensor(image, dtype=torch.float32).unsqueeze(0)
+        cumulative_size = 0
+        for file_idx, file in enumerate(self.npz_files):
+            with np.load(file, mmap_mode='r') as npz_data:
+                num_images = len(npz_data['images'])
+                if cumulative_size + num_images > idx:
+                    image_idx = idx - cumulative_size
+                    if file_idx != self.current_file_idx:
+                        self._load_file(file)
+                    image = self.data[image_idx]
+                    return torch.tensor(image, dtype=torch.float32).unsqueeze(0)
+                cumulative_size += num_images
+        raise IndexError("Index out of range.")
+
+def load_files_in_chunks(folder, chunk_size):
+    all_files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('.npz')]
+    for i in range(0, len(all_files), chunk_size):
+        yield all_files[i:i + chunk_size]
 
 def setup():
-    # Load processed data
     data_folder = 'data/processed/'
-    npz_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith('.npz')]
-
-    # Create dataset and dataloader
-    dataset = SketchDataset(npz_files)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
-
-    # Initialize model
+    dataloader = None
     model = SketchVectorizer(output_dim=output_dim)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
+
+    # Track memory and time
+    start_time = time.time()
+
+    for batch_files in load_files_in_chunks(data_folder, chunk_size):
+        dataset = SketchDataset(batch_files)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+
+        # Measure time and memory usage
+        mem = psutil.virtual_memory()
+        print(f"Memory Usage: {mem.percent}%")
+        print(f"Time taken for {len(batch_files)} files: {time.time() - start_time} seconds")
+        start_time = time.time()
+
+        # Here you could process dataloader for a sample or initial checks if needed
 
     return dataloader, model, device
 

@@ -42,7 +42,8 @@ sketch_recognition_app/
 │
 ├── scripts/
 │   ├── preprocess_data.py
-│   ├── train_model.py
+│   ├── setup.py
+│   ├── train.py
 │   └── evaluate_model.py
 │
 ├── requirements.txt

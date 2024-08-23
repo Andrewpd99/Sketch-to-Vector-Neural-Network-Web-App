@@ -34,13 +34,14 @@ class SketchVectorizer(nn.Module):
         x = self.pool(F.relu(self.bn2(self.conv2(x))))
         x = self.pool(F.relu(self.bn3(self.conv3(x))))
         x = self.pool(F.relu(self.bn4(self.conv4(x))))
-        
-        x = x.view(-1, 256 * 6 * 6)  # Adjust based on the input size
+
+        # Dynamically calculate the flattened size
+        x = x.view(x.size(0), -1)
 
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
         x = F.relu(self.fc2(x))
         x = self.dropout(x)
-        
+
         x = self.fc3(x)
         return x
