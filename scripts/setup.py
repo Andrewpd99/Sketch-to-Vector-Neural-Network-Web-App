@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, Dataset
 import multiprocessing as mp
 import psutil
 import time
+import concurrent.futures
 
 # Add the project root directory to the sys.path
 import sys
@@ -13,9 +14,10 @@ from backend.model import SketchVectorizer
 
 # Parameters
 batch_size = 128
-output_dim = 256
-num_workers = min(mp.cpu_count(), 8)  # Number of CPU threads to use
 chunk_size = 5000  # Number of files to process at a time
+
+# GPU settings
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SketchDataset(Dataset):
     def __init__(self, npz_files):
@@ -57,29 +59,38 @@ def load_files_in_chunks(folder, chunk_size):
     for i in range(0, len(all_files), chunk_size):
         yield all_files[i:i + chunk_size]
 
+def process_batch(dataloader):
+    model = SketchVectorizer().to(device)
+    model.train()
+    for data in dataloader:
+        data = data.to(device, non_blocking=True)
+        output = model(data)
+
 def setup():
     data_folder = 'data/processed/'
-    dataloader = None
-    model = SketchVectorizer(output_dim=output_dim)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
+    model = SketchVectorizer().to(device)  # Initialize without output_dim
 
     # Track memory and time
     start_time = time.time()
 
-    for batch_files in load_files_in_chunks(data_folder, chunk_size):
-        dataset = SketchDataset(batch_files)
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    # Process the first chunk to get an initial dataloader
+    batch_files = next(load_files_in_chunks(data_folder, chunk_size))
+    dataset = SketchDataset(batch_files)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=mp.cpu_count(), pin_memory=True)
 
-        # Measure time and memory usage
-        mem = psutil.virtual_memory()
-        print(f"Memory Usage: {mem.percent}%")
-        print(f"Time taken for {len(batch_files)} files: {time.time() - start_time} seconds")
-        start_time = time.time()
+    # Use threads for parallel processing of batches
+    with concurrent.futures.ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
+        futures = [executor.submit(process_batch, dataloader) for _ in range(mp.cpu_count())]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
-        # Here you could process dataloader for a sample or initial checks if needed
+    # Measure time and memory usage
+    mem = psutil.virtual_memory()
+    print(f"Memory Usage: {mem.percent}%")
+    print(f"Time taken for the first chunk of files: {time.time() - start_time} seconds")
 
-    return dataloader, model, device
+    # Return the model, dataloader, and device for training
+    return model, dataloader, device
 
 if __name__ == "__main__":
     setup()

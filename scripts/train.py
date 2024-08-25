@@ -10,38 +10,47 @@ learning_rate = 0.001
 num_epochs = 20
 accumulation_steps = 2
 checkpoint_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'checkpoint.pth'))
+initial_checkpoint_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'initial_setup_checkpoint.pth'))
 model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models'))
 
-def save_checkpoint(model, optimizer, epoch, loss, path):
+def save_checkpoint(model, optimizer, epoch, loss, file_path):
     checkpoint = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
         'loss': loss
     }
-    torch.save(checkpoint, path)
-    print(f"Checkpoint saved to {path}")
+    if optimizer is not None:
+        checkpoint['optimizer_state_dict'] = optimizer.state_dict()
+
+    torch.save(checkpoint, file_path)
+    print(f"Checkpoint saved to {file_path}")
 
 def train():
-    # Setup
-    dataloader, model, device = setup()
+    # Initialize the model and dataloader (no optimizer yet)
+    model, dataloader, device = setup()  # Use setup to initialize model, dataloader, and device
 
-    # Save the initial setup state
-    initial_checkpoint_path = os.path.join(model_dir, 'initial_setup_checkpoint.pth')
-    save_checkpoint(model, None, 0, 0, initial_checkpoint_path)
-    
-    # Initialize optimizer and scaler
+    # Initialize the optimizer
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     scaler = GradScaler()
 
-    # Load checkpoint if it exists
     start_epoch = 0
+
+    # Check if checkpoint exists to resume from it
     if os.path.exists(checkpoint_path):
+        print(f"Loading checkpoint from {checkpoint_path}...")
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
         print(f"Resuming training from epoch {start_epoch}...")
+
+    elif os.path.exists(initial_checkpoint_path):
+        print(f"Loading initial setup state from {initial_checkpoint_path}...")
+        initial_setup = torch.load(initial_checkpoint_path)
+        model.load_state_dict(initial_setup['model_state_dict'])
+        print(f"Starting training from initial setup state...")
+
+    model = model.to(device)  # Move model to the device
 
     criterion = torch.nn.MSELoss()
 
