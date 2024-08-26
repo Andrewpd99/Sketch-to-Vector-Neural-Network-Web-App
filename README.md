@@ -12,7 +12,7 @@ I Did not include .npy files in repository as the files are too large.
    ```bash
    git clone https://github.com/Andrewpd99/AI-Powered-Sketch-Recognition-Web-App
 
-
+**Currently In Progress**
 
 
 ## File Structure
