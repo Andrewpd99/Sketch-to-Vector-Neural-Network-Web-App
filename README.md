@@ -14,7 +14,6 @@ I Did not include .npy files in repository as the files are too large.
 
 
 
-
 ## File Structure
 sketch_to_vector_web_app/
 │
@@ -53,6 +52,8 @@ sketch_to_vector_web_app/
 │   ├── evaluate_model.py    # Script to evaluate the model performance
 │   └── setup.py             # Setup configurations, potentially for model and data pipelines
 │
-├── requirements.txt         # List of dependencies
-├── README.md                # Project documentation
-└── .gitignore               # Files and directories to be ignored by git
+├── requirements.txt
+├── README.md
+└── .gitignore
+
+
