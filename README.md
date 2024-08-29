@@ -20,34 +20,39 @@ sketch_to_vector_web_app/
 │
 ├── backend/
 │   ├── __init__.py
-│   ├── app.py
-│   ├── model.py
-│   ├── utils.py
+│   ├── app.py               # Main backend server for the web app (e.g., Flask/FastAPI)
+│   ├── model.py             # Model loading and prediction functions
+│   ├── utils.py             # Utility functions (e.g., for image processing or vector conversion)
 │   ├── static/
 │   │   └── style.css
 │   └── templates/
-│       └── index.html
+│       └── index.html       # Main frontend template for rendering the app
 │
 ├── frontend/
-│   ├── index.html
+│   ├── index.html           # Optional: Additional frontend resources if needed
 │   ├── style.css
 │   └── script.js
 │
 ├── data/
 │   ├── numpy_bitmap/
-│   │   └── All images.npy
-│   └── processed/
-│       └── processed_data.npz
+│   │   └── All images.npy   # Raw dataset files
+│   ├── processed/           # Processed images for training
+│   │   ├── processed_data.npz
+│   │   └── additional_batches/  # (Optional) Further batch-wise processing
+│   └── vectors/             # New directory for storing vector data
+│       └── vector_data.npz
 │
 ├── models/
-│   └── model.pth
+│   ├── model.pth            # Trained model weights
+│   └── vectorizer_model.pth # If separate models are used for vectorizing
 │
 ├── scripts/
-│   ├── preprocess_data.py
-│   ├── setup.py
-│   ├── train.py
-│   └── evaluate_model.py
+│   ├── preprocess_data.py   # Script to preprocess data (resizing, edge detection, etc.)
+│   ├── vectorize_data.py    # (New) Script specifically for converting processed images to vectors
+│   ├── train.py             # Training script for the model
+│   ├── evaluate_model.py    # Script to evaluate the model performance
+│   └── setup.py             # Setup configurations, potentially for model and data pipelines
 │
-├── requirements.txt
-├── README.md
-└── .gitignore
+├── requirements.txt         # List of dependencies
+├── README.md                # Project documentation
+└── .gitignore               # Files and directories to be ignored by git
