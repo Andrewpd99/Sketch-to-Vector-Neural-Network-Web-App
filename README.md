@@ -1,11 +1,18 @@
 # Sketch Recognition App
 
 ## Overview
-This project is an AI-powered web application that converts hand-drawn sketches into clean vector graphics.
+This project is an AI-powered web application that converts hand-drawn sketches into clean vector graphics. It utilizes a convolutional neural network (CNN) to recognize and convert sketches into vector format, making it a valuable tool for designers, animators, and doodlers.
 
 ## Setup
 Dataset from https://console.cloud.google.com/storage/browser/quickdraw_dataset/full/numpy_bitmap  
 I Did not include .npy files in repository as the files are too large.
+
+### Prerequisites
+- Python 3.8+
+- PyTorch with CUDA support (for GPU acceleration)
+- Flask/FastAPI (for backend server)
+- JavaScript, HTML, CSS (for frontend)
+- pip install -r requirements.txt
 
 
 1. **Clone the repository:**
