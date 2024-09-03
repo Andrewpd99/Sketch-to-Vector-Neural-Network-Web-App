@@ -1,8 +1,13 @@
-import os
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
 from concurrent.futures import ThreadPoolExecutor
+
+
+"""
+This tests the CPU and GPU compatibility together
+"""
+
 
 # Parameters
 batch_size = 128
