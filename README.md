@@ -44,7 +44,7 @@ sketch_to_vector_web_app/
 │   │   └── All images.npy   # Raw dataset files
 │   ├── processed/           # Processed images for training
 │   │   ├── processed_data.npz
-│   │   └── additional_batches/  # (Optional) Further batch-wise processing
+│   │   └── additional_batches/  
 │   └── vectors/             # New directory for storing vector data
 │       └── vector_data.npz
 │
