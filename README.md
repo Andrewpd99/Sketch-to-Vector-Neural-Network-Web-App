@@ -4,6 +4,7 @@
 This project is an AI-powered web application that converts hand-drawn sketches into clean vector graphics. It utilizes a convolutional neural network (CNN) to recognize and convert sketches into vector format, making it a valuable tool for designers, animators, and doodlers.
 
 ## Setup
+Currently in progress
 Dataset from https://console.cloud.google.com/storage/browser/quickdraw_dataset/full/numpy_bitmap  
 I Did not include .npy files in repository as the files are too large.
 
